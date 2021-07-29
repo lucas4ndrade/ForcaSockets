@@ -7,11 +7,12 @@ public class App {
         try {
             // Initiates server on port 8080
             ServerSocket server = new ServerSocket(8080);
-            System.out.println("Servidor ouvindo a porta 8080");
+            System.out.println("Server listening at port 8080");
 
             // blocks execution and awaits for client to connect
+            System.out.println("Waiting for connection...");
             Socket client = server.accept();
-            System.out.println("Cliente conectado: " + client.getInetAddress().getHostAddress());
+            System.out.println("Client conected: " + client.getInetAddress().getHostAddress());
 
             HangmanSession gameSession = new HangmanSession(client);
             gameSession.startGame();
@@ -19,10 +20,10 @@ public class App {
             
         }
         catch(Exception e) {
-            System.out.println("Erro: " + e.getMessage());
+            System.out.println("Error: " + e.getMessage());
         }
         finally {
-            System.out.println("Execução terminada");
+            System.out.println("Finished execution.");
         }
     }
 }
