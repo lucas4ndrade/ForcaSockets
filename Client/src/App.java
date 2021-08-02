@@ -10,9 +10,7 @@ public class App {
             gameSession.startGame();
         } catch(Exception e) { 
             System.out.println("Erro: " + e.getMessage());
-        } finally {
-            System.out.println("Aperte CTRL+C para sair do programa.");
-        }
+        } 
     }
     
 }

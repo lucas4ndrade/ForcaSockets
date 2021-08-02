@@ -48,10 +48,10 @@ public class HangmanSession {
 
     // receives and computes welcome message from server.
     private void receiveWelcomeMessage() throws Exception {
-        HashMap<String, Object> msg = receiveResponseMsgFromServer();
-        word = (List<Character>)msg.get("word");
+        Message msg = receiveResponseMsgFromServer();
+        word = msg.getWord();
         
-        System.out.println(msg.get("messageText"));
+        System.out.println(msg.getMessageText());
     }
     
     public void play() throws Exception {
@@ -59,9 +59,8 @@ public class HangmanSession {
             printHang();
             sendInputToServer();
 
-            HashMap<String, Object> msg = receiveResponseMsgFromServer();
-            System.out.println(msg.get("messageText"));
-            System.out.println(msg);
+            Message msg = receiveResponseMsgFromServer();
+            System.out.println(msg.getMessageText());
 
             computeResponse(msg);
         }
@@ -97,9 +96,9 @@ public class HangmanSession {
         String hangTop = 
         "+-------------------------------------- \n" +
         "|                                     | \n"  +
-        "|                                     "+h +"\n" +
-        "|                                   "+la+t+ra+"\n" +
-        "|                                   "+ll+" "+rl+"\n" +
+        "|                                     "+h+"\n" +
+        "|                                    "+la+t+ra+"\n" +
+        "|                                    "+ll+" "+rl+"\n" +
         "|                                         \n" +
         "|                                         \n" +
         "|                                         \n" +
@@ -115,7 +114,7 @@ public class HangmanSession {
             } else if (wordChar == ' ') {    
                 hangBase = hangBase + "  ";
             }  else {
-                hangBase = hangBase + wordChar;
+                hangBase = hangBase + wordChar + " ";
             }
         }
         
@@ -161,17 +160,22 @@ public class HangmanSession {
         clientOutStream.flush();
     }
 
-    // waits for a response message from the server.
-    private HashMap<String, Object> receiveResponseMsgFromServer() throws Exception {
-        HashMap<String, Object> msg = (HashMap<String, Object>)clientInStream.readUnshared();
-        System.out.println(msg);
+    // waits for a response from the server, and stores its content on a Message object for easier access
+    private Message receiveResponseMsgFromServer() throws Exception {
+        HashMap<String, Object> responseMsg = (HashMap<String, Object>)clientInStream.readUnshared();
+
+        String messageText       = (String)responseMsg.get("messageText");
+        List<Character> respWord = (List<Character>)responseMsg.get("word");
+        boolean correctLetter    = (boolean)responseMsg.get("isCorrectLetter");
+
+        Message msg = new Message(messageText, correctLetter, respWord);
         return msg;
     }
 
     // computes the response message received from the server.
-    private void computeResponse(HashMap<String, Object> msg) {
-        if((boolean)msg.get("isCorrectLetter")){
-            word = (List<Character>)msg.get("word");
+    private void computeResponse(Message msg) {
+        if(msg.isCorrectLetter()){
+            word = msg.getWord();
             if(isWordComplete()) {
                 clientWon = true;
                 gameInProgress = false;

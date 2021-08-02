@@ -2,7 +2,9 @@ package Server.src;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
+// Words represents a word memory database
 public class Words {
     private List<String> words;
 
@@ -11,7 +13,10 @@ public class Words {
     }
 
     public String getRandomWord(){
-        return words.get(1);
+        Random rand = new Random();
+        int randomIndex = rand.nextInt(words.size());
+
+        return words.get(randomIndex);
     }
 
     private void initWords() {
