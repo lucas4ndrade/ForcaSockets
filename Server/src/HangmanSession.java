@@ -120,18 +120,16 @@ public class HangmanSession {
             return;
         }
 
-        //verifies if the client won
+        // verifies if the client won
         boolean wordComplete = true;
         for (int i = 0; i < wordLetters.size(); i++) {
             if(wordLetters.get(i) == null) {
                 wordComplete = false;
                 break;
             } 
-        } 
-        
-        if(wordComplete){
-            gameInProgress = false;
         }
+
+        gameInProgress = !wordComplete;
     }
 
     // closes conections and data streams.
