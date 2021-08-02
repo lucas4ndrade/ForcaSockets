@@ -17,7 +17,6 @@ public class App {
             HangmanSession gameSession = new HangmanSession(client);
             gameSession.startGame();
             server.close();
-            
         }
         catch(Exception e) {
             System.out.println("Error: " + e.getMessage());

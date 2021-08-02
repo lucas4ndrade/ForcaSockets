@@ -4,39 +4,46 @@ import java.io.ObjectOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.net.Socket;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 
 // HangmanSession represents a hangman game session
 public class HangmanSession {
     private Socket client;
     private String word;
     private int errors;
-    private boolean clientWon;
-    private List<Character> usedLetters;
-    private List<Character> correctLetters;
     private List<Character> wordLetters;
+    private boolean gameInProgress;
     private ObjectOutputStream clientOutStream;
     private ObjectInputStream clientInStream;
-    private boolean gameInProgress;
     
     public HangmanSession(Socket client) {
         this.errors = 0;
-        this.client = client;
-        this.clientWon = false;
         this.gameInProgress = true;
-        this.usedLetters = new ArrayList<Character>();
-        this.correctLetters = new ArrayList<Character>();
-        this.wordLetters = new ArrayList<Character>();
+        this.client = client;
         getRandomWord();
+        initWordLetters();
     }
     
-    // gets a random word and stores its letters on 'wordLetters' array
+    // gets a random word and stores its letters on 'wordLetters' array to send to client
     private void getRandomWord() {
-        this.word = "amo voce";
-        for (int i = 0; i < this.word.length(); i++) {
-            char c = this.word.charAt(i);
-            if(c != ' ' && !this.wordLetters.contains(c)) {
-                this.wordLetters.add(c);
+        Words wordMemory = new Words();
+
+        word = wordMemory.getRandomWord();
+    }
+
+    // init word letters array to send to client, only filling slots corresponding a ' ' charater. other slots will be filled with null
+    private void initWordLetters() {
+        wordLetters = new ArrayList<Character>();
+
+        for (int i = 0; i < word.length(); i++) {
+            Character c = word.charAt(i);
+
+            if(c == ' ') {
+                wordLetters.add(c);
+            } else {
+                wordLetters.add(null);
             }
         }
     }
@@ -44,7 +51,7 @@ public class HangmanSession {
     public void startGame() {
         try {
             startDataStream();
-            sendWelcome();
+            sendWelcomeMessage();
             
             play();
             
@@ -56,125 +63,75 @@ public class HangmanSession {
     
     // starts data stream for comunication with client
     private void startDataStream() throws IOException {
-        this.clientOutStream = new ObjectOutputStream(client.getOutputStream());
-        this.clientInStream = new ObjectInputStream(client.getInputStream());
+        clientOutStream = new ObjectOutputStream(client.getOutputStream());
+        clientInStream = new ObjectInputStream(client.getInputStream());
     }
     
-    private void sendWelcome() throws IOException {
-        sendMessage("Bem vindo ao jogo da forca! \n foi escolhida uma palavra aleatória, tente adivinhar qual palavra é! \n você tem 6 chances. \n\n" + getHang());
+    // send initial welcome message
+    private void sendWelcomeMessage() throws IOException {
+        String messageText = "Bem vindo ao jogo da forca! \n foi escolhida uma palavra aleatória, tente adivinhar qual palavra é! \n você tem 6 chances. \n\n";
+
+        sendMessage(newMessage(messageText));
     }
     
     public void play() throws IOException {
-        while(this.gameInProgress) {
+        while(gameInProgress) {
             char inputedChar = Character.toLowerCase(clientInStream.readChar());
             System.out.println("Client input: " + inputedChar);
 
-            String maybeGoodbyeMessage = "";
-            String responseMessage = verifyChar(inputedChar);
-            boolean gameEnded = verifyGameEnd();
-            if(gameEnded) {
-                gameInProgress = false;
-                maybeGoodbyeMessage = getGoodbyeMessage();
-            }
+            HashMap<String,Object> msg = verifyChar(inputedChar);
 
-
-            sendMessage(responseMessage + "\n\n" + getHang() + maybeGoodbyeMessage);
+            sendMessage(msg);
+            verifyGameEnd();
         }
     }
 
-    // verifies client inputed character.
-    private String verifyChar(char inputedChar) throws IOException {
-        String message = "";
-        if(this.usedLetters.contains(inputedChar)) {
-            message = "Voce já usou essa letra! tente denovo com outra.";
-            return message;
+    // verifies client inputed character and returns a message hashmap for a response.
+    private HashMap<String, Object> verifyChar(char inputedChar) throws IOException {
+        String messageText = "";
+        boolean correctLetter = false;
+        
+        if(word.indexOf(inputedChar) >= 0 ) {
+            messageText = "Boa! a palavra contém a letra "+ inputedChar+".";
+            updateWordLetters(inputedChar);
+            correctLetter = true;
+        } else {
+            messageText = "A palavra não contém a letra "+ inputedChar+" :( .";
+            errors++;
+        }
+
+        return newMessage(messageText, correctLetter);
+    }
+
+    // update wordLetters array, filling slots with the inputed letter
+    private void updateWordLetters(char inputedChar) {
+        for (int i = 0; i < word.length(); i++) {
+            if(word.charAt(i) == inputedChar) {
+                wordLetters.set(i, inputedChar);
+            }
+        }
+    }
+
+    // verifies if the game has endede
+    private void verifyGameEnd() {
+        // verifies if the client lost
+        if(errors > 5) {
+            gameInProgress = false;
+            return;
+        }
+
+        //verifies if the client won
+        boolean wordComplete = true;
+        for (int i = 0; i < wordLetters.size(); i++) {
+            if(wordLetters.get(i) == null) {
+                wordComplete = false;
+                break;
+            } 
         } 
         
-        if(this.word.indexOf(inputedChar) >= 0 ) {
-            message = "Boa! a palavra contém a letra "+ inputedChar+".";
-            this.correctLetters.add(inputedChar);
-        } else {
-            message = "A palavra não contém a letra "+ inputedChar+" :( .";
-            this.errors++;
+        if(wordComplete){
+            gameInProgress = false;
         }
-        this.usedLetters.add(inputedChar);
-        return message;
-    }
-    
-    // gets hang string.
-    private String getHang() {
-        // define charater limbs
-        String h = " ";
-        if(errors > 0) {
-            h = "O";
-        }
-        String la = " ";
-        if(errors > 1) {
-            la = "/";
-        }
-        String t = " ";
-        if(errors > 2) {
-            t = "|";
-        }
-        String ra = " ";
-        if(errors > 3) {
-            ra = "\\";
-        }
-        String ll = " ";
-        if(errors > 4) {
-            ll = "/";
-        }
-        String rl = " ";
-        if(errors > 5) {
-            rl = "\\";
-        }
-        String hangTop = 
-        "+-------------------------------------- \n" +
-        "|                                     | \n"  +
-        "|                                     "+h +"\n" +
-        "|                                   "+la+t+ra+"\n" +
-        "|                                   "+ll+" "+rl+"\n" +
-        "|                                         \n" +
-        "|                                         \n" +
-        "|                                         \n" +
-        "|                                         \n";
-        
-        String hangBase = "| ";
-        for (int i = 0; i < this.word.length(); i++) {
-            char wordChar = this.word.charAt(i);
-
-            if(wordChar == ' ') {    
-                hangBase = hangBase + "  ";
-            }  else if(correctLetters.contains(wordChar)) {
-                hangBase = hangBase + wordChar + " ";
-            } else {
-                hangBase = hangBase + "_ " ;
-            }
-        }
-        
-        return hangTop + hangBase + "\n letras já utilizadas: " + this.usedLetters.toString() + "\n";
-        
-    }
-    
-    // checks if the game ended and computes its possible outcome.
-    private boolean verifyGameEnd() {
-        if(this.errors >= 6) {
-            return true;
-        } else if (this.correctLetters.size() == this.wordLetters.size()) {
-            this.clientWon = true;
-            return true;
-        }
-        return false;
-    }
-
-    // returns a goodbye message given game outcome.
-    private String getGoodbyeMessage() {
-        String message = "voce perdeu...";
-        if(clientWon) {
-            message = "voce venceu!";
-        }
-
-        return "O jogo terminou e " + message + "\n você será desconectado agora, até mais!\n\n Aperte CTRL+C para sair do programa.";
     }
 
     // closes conections and data streams.
@@ -188,9 +145,25 @@ public class HangmanSession {
         }
     }
     
-    // sends a string message to client via data stream.
-    private void sendMessage(String message) throws IOException {
-        clientOutStream.writeUTF(message);
+    // creates a hashmap with information to pass through the data stream
+    private HashMap<String, Object> newMessage(String messageText) {
+        return newMessage(messageText, false);
+    }
+ 
+    // creates a hashmap with information to pass through the data stream
+    private HashMap<String, Object> newMessage(String messageText, boolean isCorrectLetter) {
+        HashMap<String, Object> message = new HashMap<>();
+        message.put("messageText", messageText);
+        message.put("word", wordLetters);
+        message.put("isCorrectLetter", isCorrectLetter);
+
+        return message;
+    }
+
+    // sends a message hashmap to client via data stream.
+    private void sendMessage(HashMap<String, Object> message) throws IOException {
+        clientOutStream.writeUnshared(message);
         clientOutStream.flush();
+        clientOutStream.reset();
     }
 }

@@ -11,7 +11,7 @@ public class Words {
     }
 
     public String getRandomWord(){
-        return words.get(0);
+        return words.get(1);
     }
 
     private void initWords() {
